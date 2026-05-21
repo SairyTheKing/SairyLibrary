@@ -1,7 +1,6 @@
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local Library = {
@@ -70,7 +69,7 @@ function Library:Notify(title, text, duration, iconName)
         nTitle.Position = UDim2.new(0, 40, 0, 8)
     end
 
-    TweenService:Create(NotifFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {Position = UDim2.new(1, -300, 1, -100 - (#Library.Notifications * 90)}):Play()
+    TweenService:Create(NotifFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {Position = UDim2.new(1, -300, 1, -100 - (#Library.Notifications * 90))}):Play()
 
     table.insert(Library.Notifications, NotifGui)
 
@@ -175,7 +174,6 @@ function Library:CreateWindow(title, iconName)
             tIcon.Image = Library.Icons[iconName]
             tIcon.ImageColor3 = theme.Accent
             TabBtn.Text = ""
-            TabBtn.TextYAlignment = Enum.TextYAlignment.Bottom
             local nameLabel = Instance.new("TextLabel", TabBtn)
             nameLabel.Size = UDim2.new(1, 0, 0, 12)
             nameLabel.Position = UDim2.new(0, 0, 1, -16)
