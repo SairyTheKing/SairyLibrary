@@ -33,7 +33,8 @@ local Library = {
         ElementHeight = 32,
         SectionHeaderHeight = 28,
         CornerRadius = 6,
-        AnimationSpeed = 0.25
+        AnimationSpeed = 0.25,
+        ResizeHandleSize = 8
     }
 }
 
@@ -226,19 +227,22 @@ function Library:CreateWindow(title, iconName, config)
         Size = config.Size or UDim2.new(0, 500, 0, 350),
         Position = config.Position or UDim2.new(0.5, -250, 0.5, -175),
         Draggable = config.Draggable ~= false,
+        Resizable = config.Resizable ~= false,
         TitleBarHeight = config.TitleBarHeight or 38,
         TabBarWidth = config.TabBarWidth or 120,
         ShowTabBar = config.ShowTabBar ~= false,
         CornerRadius = config.CornerRadius or 6,
         MinSize = config.MinSize or Vector2.new(300, 200),
-        TabBarPosition = config.TabBarPosition or "Left"
+        TabBarPosition = config.TabBarPosition or "Left",
+        Acrylic = config.Acrylic or false
     }
 
     local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "Voidseen"
+    ScreenGui.Name = "Voidseen_" .. tostring(#Library.Windows + 1)
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.Parent = gethui and gethui() or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+    Window.ScreenGui = ScreenGui
 
     local Main = Instance.new("Frame")
     Main.Name = "Main"
@@ -249,13 +253,13 @@ function Library:CreateWindow(title, iconName, config)
     Main.Active = true
     Main.ClipsDescendants = true
     Main.Parent = ScreenGui
+    Window.ThemeObjects.Main = Main
 
     Instance.new("UICorner", Main).CornerRadius = UDim.new(0, Window.Config.CornerRadius)
     local Stroke = Instance.new("UIStroke", Main)
     Stroke.Color = theme.Outline
     Stroke.Thickness = 1
     Window.ThemeObjects.Stroke = Stroke
-    Window.ThemeObjects.Main = Main
 
     local Shadow = Instance.new("ImageLabel", Main)
     Shadow.Name = "Shadow"
@@ -351,6 +355,29 @@ function Library:CreateWindow(title, iconName, config)
     MinIcon.ZIndex = 7
     Window.ThemeObjects.MinIcon = MinIcon
 
+    local ResizeHandle
+    if Window.Config.Resizable then
+        ResizeHandle = Instance.new("TextButton", Main)
+        ResizeHandle.Name = "ResizeHandle"
+        ResizeHandle.Size = UDim2.new(0, Library.GlobalConfig.ResizeHandleSize, 0, Library.GlobalConfig.ResizeHandleSize)
+        ResizeHandle.Position = UDim2.new(1, -Library.GlobalConfig.ResizeHandleSize, 1, -Library.GlobalConfig.ResizeHandleSize)
+        ResizeHandle.BackgroundTransparency = 1
+        ResizeHandle.Text = ""
+        ResizeHandle.AutoButtonColor = false
+        ResizeHandle.ZIndex = 50
+
+        local ResizeIcon = Instance.new("ImageLabel", ResizeHandle)
+        ResizeIcon.Size = UDim2.new(0, 10, 0, 10)
+        ResizeIcon.Position = UDim2.new(1, -10, 1, -10)
+        ResizeIcon.BackgroundTransparency = 1
+        ResizeIcon.Image = Library.Icons["maximize-2"] or ""
+        ResizeIcon.ImageColor3 = theme.Outline
+        ResizeIcon.ImageTransparency = 0.5
+        ResizeIcon.ZIndex = 51
+        ResizeIcon.Rotation = 90
+        Window.ThemeObjects.ResizeIcon = ResizeIcon
+    end
+
     local TabBar
     local ContentFrame
     local isHorizontal = Window.Config.TabBarPosition == "Top"
@@ -442,10 +469,12 @@ function Library:CreateWindow(title, iconName, config)
             TweenService:Create(Main, TweenInfo.new(Library.TweenSpeed, Enum.EasingStyle.Quint), {Size = UDim2.new(0, originalSize.X.Offset, 0, Window.Config.TitleBarHeight)}):Play()
             if ContentFrame then TweenService:Create(ContentFrame, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play() end
             if TabBar then TweenService:Create(TabBar, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play() end
+            if ResizeHandle then ResizeHandle.Visible = false end
         else
             TweenService:Create(Main, TweenInfo.new(Library.TweenSpeed, Enum.EasingStyle.Quint), {Size = originalSize}):Play()
             if ContentFrame then TweenService:Create(ContentFrame, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play() end
             if TabBar then TweenService:Create(TabBar, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play() end
+            if ResizeHandle then ResizeHandle.Visible = true end
         end
     end)
 
@@ -489,6 +518,33 @@ function Library:CreateWindow(title, iconName, config)
         end)
     end
 
+    if Window.Config.Resizable and ResizeHandle then
+        local resizing = false
+        local resizeStart
+        local sizeStart
+
+        ResizeHandle.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                resizing = true
+                resizeStart = input.Position
+                sizeStart = Main.Size
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then resizing = false end
+                end)
+            end
+        end)
+
+        UserInputService.InputChanged:Connect(function(input)
+            if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - resizeStart
+                local newW = math.max(Window.Config.MinSize.X, sizeStart.X.Offset + delta.X)
+                local newH = math.max(Window.Config.MinSize.Y, sizeStart.Y.Offset + delta.Y)
+                Main.Size = UDim2.new(0, newW, 0, newH)
+                originalSize = Main.Size
+            end
+        end)
+    end
+
     function Window:UpdateTheme()
         local newTheme = Library.CurrentTheme
         Main.BackgroundColor3 = newTheme.Main
@@ -500,6 +556,9 @@ function Library:CreateWindow(title, iconName, config)
         ContentContainer.ScrollBarImageColor3 = newTheme.Accent
         MinStroke.Color = newTheme.Outline
         MinIcon.ImageColor3 = newTheme.Text
+        if Window.ThemeObjects.ResizeIcon then
+            Window.ThemeObjects.ResizeIcon.ImageColor3 = newTheme.Outline
+        end
         for _, tab in pairs(Window.Tabs) do
             if tab and tab.UpdateTheme then tab:UpdateTheme() end
         end
