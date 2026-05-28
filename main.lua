@@ -1,14 +1,8 @@
---[[ 
-    MONOLITH FINGERPAINT LIBRARY (V9 - Final Optimized Build)
-    Designed for: loadstring execution
-]]
-
 local uis = game:GetService("UserInputService") 
 local tween_service = game:GetService("TweenService")
 local http_service = game:GetService("HttpService")
 local gui_service = game:GetService("GuiService")
 
--- 1. FIRST: Define helper functions that everything else depends on
 local function get_ui_parent()
     local success, parent = pcall(function() return gethui and gethui() end)
     if success and parent then return parent end
@@ -17,7 +11,6 @@ local function get_ui_parent()
     return game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- 2. SECOND: Define the library table and state before adding functions to it
 local library = {
     font = Font.new("rbxassetid://12187375716", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
 }
@@ -29,15 +22,12 @@ local function track_connection(conn)
     return conn
 end
 
--- 3. THIRD: Define the Unload/Cleanup logic
 function library:Unload()
-    -- Disconnect all UIS listeners
     for _, conn in ipairs(connections) do
         if conn then conn:Disconnect() end
     end
     table.clear(connections)
 
-    -- Destroy UI
     local parent = get_ui_parent()
     if parent:FindFirstChild("MonolithUI") then parent.MonolithUI:Destroy() end
     if parent:FindFirstChild("MonolithNotifs") then parent.MonolithNotifs:Destroy() end
@@ -51,10 +41,8 @@ local function global_cleanup()
     if parent:FindFirstChild("MonolithNotifs") then parent.MonolithNotifs:Destroy() end
 end
 
--- Run cleanup immediately on script start (for re-runs)
 global_cleanup()
 
--- Shorthands & Theme
 local dim2 = UDim2.new
 local dim = UDim.new 
 local rgb = Color3.fromRGB
@@ -73,7 +61,6 @@ local Theme = {
     Outline = rgb(45, 45, 45)
 }
 
--- Utility Functions
 function library:tween(obj, props, time) 
     local t = tween_service:Create(obj, TweenInfo.new(time or 0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
     t:Play()
@@ -93,20 +80,17 @@ function library:draggify(frame, drag_area)
             dragging = true; startInput = input.Position; startPos = frame.Position
         end
     end)
-    -- TRACKED CONNECTION
     track_connection(uis.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - startInput
             frame.Position = dim2(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end))
-    -- TRACKED CONNECTION
     track_connection(uis.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
     end))
 end
 
--- Notification Container Setup
 local notif_screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithNotifs"})
 local notif_container = library:create("Frame", {
     Parent = notif_screen, 
@@ -122,7 +106,6 @@ library:create("UIListLayout", {
 })
 library:create("UIPadding", {Parent = notif_container, PaddingBottom = dim(0, 20), PaddingRight = dim(0, 10)})
 
--- Safe Lazy-Load Lucide Icons
 local Icons
 task.spawn(function()
     pcall(function()
@@ -176,7 +159,6 @@ local function PremiumOverlay(parent)
     library:create("TextButton", { Parent = overlay, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 12 })
 end
 
--- LOADING ANIMATION LOGIC
 local function BootSequence(windowFrame, windowName)
     local main = library:create("Frame", {
         Parent = windowFrame, Size = dim2(1, 0, 1, 0), BackgroundColor3 = rgb(0, 0, 0), 
@@ -223,7 +205,6 @@ local function BootSequence(windowFrame, windowName)
     end)
 end
 
--- Window System
 function library:window(props)
     local win = { items = {}, tabs = {}, _toggleRegistry = {}, _tabOrder = 0 }
     local screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithUI", ResetOnSpawn = false})
@@ -234,8 +215,6 @@ function library:window(props)
     library:create("UICorner", {Parent = main, CornerRadius = dim(0, 8)})
     library:create("UIStroke", {Parent = main, Color = Theme.Outline, Thickness = 1})
 
-    -- [GLOW UPDATE] Add an ambient window glow to the very bottom that matches your reference image perfectly
-    -- [GLOW UPDATE] Corrected: Using NumberSequence for Transparency
     local window_bottom_glow = library:create("Frame", {
         Parent = main, Size = dim2(1, 0, 0, 120), Position = dim2(0, 0, 1, 0), AnchorPoint = Vector2.new(0, 1),
         BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 0
@@ -244,8 +223,8 @@ function library:window(props)
     library:create("UIGradient", {
         Parent = window_bottom_glow, Rotation = 90,
         Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 1),      -- Fade completely transparent at the top
-            NumberSequenceKeypoint.new(1, 0.85)    -- Subtle ambient colored glow at the bottom
+            NumberSequenceKeypoint.new(0, 1),
+            NumberSequenceKeypoint.new(1, 0.85)
         })
     })
 
@@ -304,7 +283,6 @@ function library:window(props)
     minBtn.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
         if isMinimized then
-            -- [GLOW UPDATE] Hide the bottom glow when minimized to prevent overlap
             savedSize = main.Size; resizeHandle.Visible = false; sidebar.Visible = false; page_holder.Visible = false; topbar_filler.Visible = false; window_bottom_glow.Visible = false
             library:tween(main, {Size = dim2(0, savedSize.X.Offset, 0, 40)}, 0.25)
         else
@@ -328,7 +306,6 @@ function library:window(props)
     end
 
     function win:Tab(props)
-        -- [GLOW UPDATE] Fetch customizable Glow Colors (Defaults to Theme Accent)
         local tabColor = props.GlowColor or props.glowcolor or props.Color or props.color or Theme.Accent
 
         local tab = { name = props.name or props.Name or "Tab" }
@@ -340,7 +317,6 @@ function library:window(props)
         local tOff = tIcon and 34 or 10
         local tLabel = library:create("TextLabel", { Parent = btn, Text = tab.name, Size = dim2(1, -tOff, 1, 0), Position = dim2(0, tOff, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13 })
 
-        -- [GLOW UPDATE] Corrected: Using NumberSequence and NumberSequenceKeypoint for Transparency
         local tab_glow = library:create("Frame", {
             Parent = btn, Size = dim2(0.2, 0, 0, 2), Position = dim2(0.5, 0, 1, 0), AnchorPoint = Vector2.new(0.5, 1),
             BackgroundColor3 = tabColor, BorderSizePixel = 0, BackgroundTransparency = 1, ZIndex = 2
@@ -366,7 +342,6 @@ function library:window(props)
 
         if #win.tabs == 0 and not props._noAutoSelect then
             page.Visible = true; tLabel.TextColor3 = Theme.Text; btn.BackgroundColor3 = Theme.ElementBG; color_icon(tIcon, Theme.Text)
-            -- [GLOW UPDATE] Apply the glow immediately to the first tab
             tab_glow.BackgroundTransparency = 0
             tab_glow.Size = dim2(0.7, 0, 0, 2)
             window_bottom_glow.BackgroundColor3 = tabColor
@@ -377,12 +352,10 @@ function library:window(props)
             for _, t in pairs(win.tabs) do 
                 t.page.Visible = false; t.label.TextColor3 = Theme.MutedText; color_icon(t.icon, Theme.MutedText)
                 library:tween(t.btn, {BackgroundColor3 = Theme.MainBG}, 0.15)
-                -- [GLOW UPDATE] Reset and hide other active glows
                 library:tween(t.glow, {BackgroundTransparency = 1, Size = dim2(0.2, 0, 0, 2)}, 0.15)
             end
             page.Visible = true; tLabel.TextColor3 = Theme.Text; color_icon(tIcon, Theme.Text)
             library:tween(btn, {BackgroundColor3 = Theme.ElementBG}, 0.15)
-            -- [GLOW UPDATE] Expand selected glow and shift ambient bottom glow color
             library:tween(tab_glow, {BackgroundTransparency = 0, Size = dim2(0.7, 0, 0, 2)}, 0.15)
             library:tween(window_bottom_glow, {BackgroundColor3 = tabColor}, 0.3)
         end)
@@ -779,11 +752,7 @@ function library:window(props)
         return tab
     end
 
-    -- ╔══════════════════════════════════════════╗
--- ║        AUTO UI SETTINGS TAB             ║
--- ╚══════════════════════════════════════════╝
 do
-    -- Scans all ScreenGui descendants and retints anything matching old_color
     local function retint(old_color, new_color)
         local epsilon = 0.008
         local function matches(c)
@@ -807,14 +776,11 @@ do
         end
     end
 
-    -- Snapshot defaults so we can reset later
     local defaultTheme = {}
     for k, v in pairs(Theme) do defaultTheme[k] = v end
 
-    -- Create the tab
     local st = win:Tab({ name = "UI Settings", icon = "lucide:settings-2", _layoutOrder = 999999, _noAutoSelect = true })
 
-    -- ── LEFT COLUMN: Colors ──────────────────────────────────────────────
     local colorSection = st:Section({ name = "Colors", side = "left" })
 
     colorSection:Colorpicker({
@@ -867,18 +833,16 @@ do
         end
     })
 
-    -- ── RIGHT COLUMN: Controls & Misc ────────────────────────────────────
     local controlSection = st:Section({ name = "Controls", side = "right" })
 
     controlSection:Keybind({
         name = "Toggle Menu",
         default = Enum.KeyCode.RightControl,
         Callback = function(key)
-            toggleKey = key  -- updates the dynamic variable from Change 1
+            toggleKey = key
         end
     })
 
-    -- UI Opacity slider (tweens the whole window transparency)
     controlSection:Slider({
         name = "UI Opacity",
         min = 0,
@@ -891,7 +855,6 @@ do
         end
     })
 
-    -- Misc section
     local miscSection = st:Section({ name = "Miscellaneous", side = "right" })
 
     miscSection:Button({
@@ -915,7 +878,6 @@ do
         end
     })
 
-    -- ── Mobile Floating Buttons System ──────────────────────────────────
     local mobileSection = st:Section({ name = "Mobile", side = "left" })
     local activeFloatingBtns = {}
 
@@ -929,7 +891,6 @@ do
         })
         library:create("UICorner", { Parent = floatBtn, CornerRadius = dim(1, 0) })
         library:create("UIStroke", { Parent = floatBtn, Color = Theme.Outline, Thickness = 1.5 })
-        -- Abbreviated label (first 3 chars)
         local abbrev = string.sub(toggleName, 1, 3):upper()
         local floatLabel = library:create("TextLabel", {
             Parent = floatBtn, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1,
@@ -937,7 +898,6 @@ do
             FontFace = library.font, TextSize = 12, TextTruncate = Enum.TextTruncate.AtEnd
         })
 
-        -- Dragging logic
         local dragging, dragStart, startPos = false, nil, nil
         local hasMoved = false
         floatBtn.InputBegan:Connect(function(input)
@@ -956,7 +916,6 @@ do
         track_connection(uis.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 if dragging and not hasMoved then
-                    -- Tap = toggle
                     toggleApi:set(not toggleApi.enabled)
                     library:tween(floatBtn, { BackgroundColor3 = toggleApi.enabled and Theme.Accent or Theme.ElementBG }, 0.15)
                     floatLabel.TextColor3 = toggleApi.enabled and Theme.MainBG or Theme.Text
@@ -969,14 +928,12 @@ do
     end
 
     local function refreshMobileButtons(selectedNames)
-        -- Destroy removed
         for name, entry in pairs(activeFloatingBtns) do
             if not table.find(selectedNames, name) then
                 entry.destroy()
                 activeFloatingBtns[name] = nil
             end
         end
-        -- Create new
         for _, name in ipairs(selectedNames) do
             if not activeFloatingBtns[name] then
                 for _, reg in ipairs(win._toggleRegistry) do
@@ -989,7 +946,6 @@ do
         end
     end
 
-    -- Build the dropdown items lazily from the toggle registry
     local mobileDropdown = mobileSection:Dropdown({
         name = "Mobile Buttons",
         multi = true,
@@ -998,7 +954,6 @@ do
         Callback = function(selected) refreshMobileButtons(selected) end
     })
 
-    -- Refresh dropdown items whenever a new tab/toggle might have been added
     function win:RefreshMobileList()
         local names = {}
         for _, reg in ipairs(win._toggleRegistry) do
@@ -1007,7 +962,6 @@ do
         mobileDropdown:set_items(names)
     end
 end
--- ╚══ END UI SETTINGS TAB ══╝
 
 return win
 end
