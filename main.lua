@@ -208,8 +208,16 @@ end
 function library:window(props)
     local win = { items = {}, tabs = {}, _toggleRegistry = {}, _tabOrder = 0 }
     local screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithUI", ResetOnSpawn = false})
+    local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800, 600)
+    local compact = uis.TouchEnabled or viewport.X <= 720
+    local sidebarWidth = compact and 92 or 140
+    local topbarHeight = compact and 42 or 40
+    local minWindowWidth = compact and 330 or 450
+    local minWindowHeight = compact and 340 or 300
+    local windowWidth = math.clamp(viewport.X - 24, minWindowWidth, compact and 440 or 650)
+    local windowHeight = math.clamp(viewport.Y - 64, compact and 360 or 420, compact and 560 or 450)
     local main = library:create("Frame", {
-        Parent = screen, Size = dim2(0, 650, 0, 450), Position = dim2(0.5, -325, 0.5, -225),
+        Parent = screen, Size = dim2(0, windowWidth, 0, windowHeight), Position = dim2(0.5, -math.floor(windowWidth / 2), 0.5, -math.floor(windowHeight / 2)),
         BackgroundColor3 = Theme.MainBG, BorderSizePixel = 0
     })
     library:create("UICorner", {Parent = main, CornerRadius = dim(0, 8)})
@@ -228,7 +236,7 @@ function library:window(props)
         })
     })
 
-    local topbar = library:create("Frame", { Parent = main, Size = dim2(1, 0, 0, 40), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0 })
+    local topbar = library:create("Frame", { Parent = main, Size = dim2(1, 0, 0, topbarHeight), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0 })
     library:create("UICorner", {Parent = topbar, CornerRadius = dim(0, 8)})
     local topbar_filler = library:create("Frame", {Parent = topbar, Size = dim2(1, 0, 0, 10), Position = dim2(0, 0, 1, -10), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0}) 
     library:create("Frame", {Parent = topbar, Size = dim2(1, 0, 0, 1), Position = dim2(0, 0, 1, 0), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0}) 
@@ -240,15 +248,17 @@ function library:window(props)
 
     library:create("TextLabel", {
         Parent = topbar, Text = (props.name or props.Name or "Nebula UI"), Size = dim2(1, -(titleOff + 80), 1, 0), Position = dim2(0, titleOff, 0, 0),
-        BackgroundTransparency = 1, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 18
+        BackgroundTransparency = 1, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = compact and 16 or 18
     })
 
-    local minBtn = library:create("TextButton", { Parent = topbar, Size = dim2(0, 30, 0, 24), Position = dim2(1, -70, 0.5, -12), BackgroundColor3 = Theme.TopbarBG, Text = "", AutoButtonColor = false })
+    local topButtonSize = compact and 32 or 30
+    local topButtonHeight = compact and 28 or 24
+    local minBtn = library:create("TextButton", { Parent = topbar, Size = dim2(0, topButtonSize, 0, topButtonHeight), Position = dim2(1, -(topButtonSize * 2 + 12), 0.5, -math.floor(topButtonHeight / 2)), BackgroundColor3 = Theme.TopbarBG, Text = "", AutoButtonColor = false })
     library:create("UICorner", {Parent = minBtn, CornerRadius = dim(0, 4)})
     local minIconObj = get_icon("lucide:minus", Theme.MutedText)
     if minIconObj then minIconObj.Size = dim2(0, 14, 0, 14); minIconObj.Position = dim2(0.5, 0, 0.5, 0); minIconObj.AnchorPoint = Vector2.new(0.5, 0.5); minIconObj.Parent = minBtn end
 
-    local closeBtn = library:create("TextButton", { Parent = topbar, Size = dim2(0, 30, 0, 24), Position = dim2(1, -36, 0.5, -12), BackgroundColor3 = Theme.TopbarBG, Text = "", AutoButtonColor = false })
+    local closeBtn = library:create("TextButton", { Parent = topbar, Size = dim2(0, topButtonSize, 0, topButtonHeight), Position = dim2(1, -(topButtonSize + 6), 0.5, -math.floor(topButtonHeight / 2)), BackgroundColor3 = Theme.TopbarBG, Text = "", AutoButtonColor = false })
     library:create("UICorner", {Parent = closeBtn, CornerRadius = dim(0, 4)})
     local closeIconObj = get_icon("lucide:x", Theme.MutedText)
     if closeIconObj then closeIconObj.Size = dim2(0, 14, 0, 14); closeIconObj.Position = dim2(0.5, 0, 0.5, 0); closeIconObj.AnchorPoint = Vector2.new(0.5, 0.5); closeIconObj.Parent = closeBtn end
@@ -260,7 +270,7 @@ function library:window(props)
     closeBtn.MouseButton1Click:Connect(function() screen:Destroy() end)
 
     local sidebar = library:create("ScrollingFrame", { 
-        Parent = main, Position = dim2(0, 0, 0, 41), Size = dim2(0, 140, 1, -41), 
+        Parent = main, Position = dim2(0, 0, 0, topbarHeight + 1), Size = dim2(0, sidebarWidth, 1, -(topbarHeight + 1)), 
         BackgroundColor3 = Theme.SidebarBG, BorderSizePixel = 0,
         ScrollBarThickness = 2, ScrollBarImageColor3 = Theme.Outline,
         CanvasSize = dim2(0, 0, 0, 0), AutomaticCanvasSize = Enum.AutomaticSize.Y, ZIndex = 1
@@ -268,14 +278,14 @@ function library:window(props)
     library:create("UIStroke", {
         Parent = sidebar, Color = Theme.Outline, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     })
-    local page_holder = library:create("Frame", { Parent = main, Position = dim2(0, 141, 0, 41), Size = dim2(1, -141, 1, -41), BackgroundTransparency = 1 })
+    local page_holder = library:create("Frame", { Parent = main, Position = dim2(0, sidebarWidth + 1, 0, topbarHeight + 1), Size = dim2(1, -(sidebarWidth + 1), 1, -(topbarHeight + 1)), BackgroundTransparency = 1 })
     library:create("UIListLayout", {Parent = sidebar, Padding = dim(0, 5), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder})
     library:create("UIPadding", {Parent = sidebar, PaddingTop = dim(0, 10)})
 
-    local resizeHandle = library:create("TextButton", { Parent = main, Size = dim2(0, 20, 0, 20), Position = dim2(1, -20, 1, -20), BackgroundTransparency = 1, Text = "↘", TextColor3 = Theme.MutedText, TextSize = 14, FontFace = library.font, ZIndex = 100 })
+    local resizeHandle = library:create("TextButton", { Parent = main, Size = dim2(0, 20, 0, 20), Position = dim2(1, -20, 1, -20), BackgroundTransparency = 1, Text = compact and "" or "↘", TextColor3 = Theme.MutedText, TextSize = 14, FontFace = library.font, Visible = not compact, ZIndex = 100 })
     local resizing, rStartPos, rStartSize
     resizeHandle.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then resizing = true; rStartPos = input.Position; rStartSize = main.Size end end)
-    track_connection(uis.InputChanged:Connect(function(input) if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then local delta = input.Position - rStartPos; main.Size = dim2(0, math.max(450, rStartSize.X.Offset + delta.X), 0, math.max(300, rStartSize.Y.Offset + delta.Y)) end end))
+    track_connection(uis.InputChanged:Connect(function(input) if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then local delta = input.Position - rStartPos; main.Size = dim2(0, math.max(minWindowWidth, rStartSize.X.Offset + delta.X), 0, math.max(minWindowHeight, rStartSize.Y.Offset + delta.Y)) end end))
     track_connection(uis.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then resizing = false end end))
 
     local isMinimized = false
@@ -284,11 +294,11 @@ function library:window(props)
         isMinimized = not isMinimized
         if isMinimized then
             savedSize = main.Size; resizeHandle.Visible = false; sidebar.Visible = false; page_holder.Visible = false; topbar_filler.Visible = false; window_bottom_glow.Visible = false
-            library:tween(main, {Size = dim2(0, savedSize.X.Offset, 0, 40)}, 0.25)
+            library:tween(main, {Size = dim2(0, savedSize.X.Offset, 0, topbarHeight)}, 0.25)
         else
             topbar_filler.Visible = true
             local t = library:tween(main, {Size = savedSize}, 0.25)
-            t.Completed:Connect(function() if not isMinimized then sidebar.Visible = true; page_holder.Visible = true; resizeHandle.Visible = true; window_bottom_glow.Visible = true end end)
+            t.Completed:Connect(function() if not isMinimized then sidebar.Visible = true; page_holder.Visible = true; resizeHandle.Visible = not compact; window_bottom_glow.Visible = true end end)
         end
     end)
 
@@ -310,12 +320,12 @@ function library:window(props)
 
         local tab = { name = props.name or props.Name or "Tab" }
         win._tabOrder = win._tabOrder + 1
-        local btn = library:create("TextButton", { Parent = sidebar, Size = dim2(1, -16, 0, 32), BackgroundColor3 = Theme.MainBG, Text = "", AutoButtonColor = false, LayoutOrder = props._layoutOrder or win._tabOrder })
+        local btn = library:create("TextButton", { Parent = sidebar, Size = dim2(1, compact and -10 or -16, 0, compact and 38 or 32), BackgroundColor3 = Theme.MainBG, Text = "", AutoButtonColor = false, LayoutOrder = props._layoutOrder or win._tabOrder })
         library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
         local tIcon = get_icon(props.Icon or props.icon or "lucide:folder", Theme.MutedText)
-        if tIcon then tIcon.Size = dim2(0, 16, 0, 16); tIcon.Position = dim2(0, 10, 0.5, 0); tIcon.AnchorPoint = Vector2.new(0, 0.5); tIcon.Parent = btn end
-        local tOff = tIcon and 34 or 10
-        local tLabel = library:create("TextLabel", { Parent = btn, Text = tab.name, Size = dim2(1, -tOff, 1, 0), Position = dim2(0, tOff, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13 })
+        if tIcon then tIcon.Size = dim2(0, 16, 0, 16); tIcon.Position = dim2(0, compact and 8 or 10, 0.5, 0); tIcon.AnchorPoint = Vector2.new(0, 0.5); tIcon.Parent = btn end
+        local tOff = tIcon and (compact and 30 or 34) or 10
+        local tLabel = library:create("TextLabel", { Parent = btn, Text = tab.name, Size = dim2(1, -tOff, 1, 0), Position = dim2(0, tOff, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = compact and 12 or 13 })
 
         local tab_glow = library:create("Frame", {
             Parent = btn, Size = dim2(0.2, 0, 0, 2), Position = dim2(0.5, 0, 1, 0), AnchorPoint = Vector2.new(0.5, 1),
@@ -332,13 +342,16 @@ function library:window(props)
         tab_grad.Parent = tab_glow
 
         local page = library:create("ScrollingFrame", { Parent = page_holder, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1, Visible = false, ScrollBarThickness = 0, AutomaticCanvasSize = Enum.AutomaticSize.Y })
-        library:create("UIListLayout", {Parent = page, FillDirection = Enum.FillDirection.Horizontal, Padding = dim(0, 15), SortOrder = Enum.SortOrder.LayoutOrder})
-        library:create("UIPadding", {Parent = page, PaddingLeft = dim(0, 15), PaddingRight = dim(0, 15), PaddingTop = dim(0, 15), PaddingBottom = dim(0, 15)})
+        local contentPadding = compact and 10 or 15
+        local pageDirection = compact and Enum.FillDirection.Vertical or Enum.FillDirection.Horizontal
+        library:create("UIListLayout", {Parent = page, FillDirection = pageDirection, Padding = dim(0, contentPadding), SortOrder = Enum.SortOrder.LayoutOrder})
+        library:create("UIPadding", {Parent = page, PaddingLeft = dim(0, contentPadding), PaddingRight = dim(0, contentPadding), PaddingTop = dim(0, contentPadding), PaddingBottom = dim(0, contentPadding)})
 
-        local left_col = library:create("Frame", { Parent = page, Size = dim2(0.5, -8, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
-        library:create("UIListLayout", {Parent = left_col, Padding = dim(0, 10)})
-        local right_col = library:create("Frame", { Parent = page, Size = dim2(0.5, -8, 0, 0), Position = dim2(0.5, 8, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
-        library:create("UIListLayout", {Parent = right_col, Padding = dim(0, 10)})
+        local columnSize = compact and dim2(1, 0, 0, 0) or dim2(0.5, -8, 0, 0)
+        local left_col = library:create("Frame", { Parent = page, Size = columnSize, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
+        library:create("UIListLayout", {Parent = left_col, Padding = dim(0, compact and 8 or 10)})
+        local right_col = library:create("Frame", { Parent = page, Size = columnSize, Position = compact and dim2(0, 0, 0, 0) or dim2(0.5, 8, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
+        library:create("UIListLayout", {Parent = right_col, Padding = dim(0, compact and 8 or 10)})
 
         if #win.tabs == 0 and not props._noAutoSelect then
             page.Visible = true; tLabel.TextColor3 = Theme.Text; btn.BackgroundColor3 = Theme.ElementBG; color_icon(tIcon, Theme.Text)
@@ -366,10 +379,10 @@ function library:window(props)
             return { instance = l, set = function(txt) l.Text = txt end }
         end
         function section_api:Button(p)
-            local b = library:create("TextButton", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = " " .. (p.name or p.Name or "Button"), TextColor3 = Theme.Text, FontFace = library.font, TextSize = 13, AutoButtonColor = false })
+            local b = library:create("TextButton", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, compact and 40 or 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.name or p.Name or "Button"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, FontFace = library.font, TextSize = compact and 14 or 13, AutoButtonColor = false })
             library:create("UICorner", {Parent = b, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = b, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(b) end
-            b.MouseButton1Click:Connect(function() library:tween(b, {BackgroundColor3 = Theme.HoverBG}, 0.1); task.wait(0.1); library:tween(b, {BackgroundColor3 = Theme.ElementBG}, 0.1); if p.Callback then p.Callback() end end)
+            b.Activated:Connect(function() library:tween(b, {BackgroundColor3 = Theme.HoverBG}, 0.1); task.wait(0.1); library:tween(b, {BackgroundColor3 = Theme.ElementBG}, 0.1); if p.Callback then p.Callback() end end)
             return {}
         end
         function section_api:Toggle(p)
@@ -742,8 +755,8 @@ function library:window(props)
             local parent_col = (string.lower(props.side or "left") == "right") and right_col or left_col
             s.elements = library:create("Frame", { Parent = parent_col, Size = dim2(1, 0, 0, 0), BackgroundColor3 = Theme.SectionBG, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UICorner", {Parent = s.elements, CornerRadius = dim(0, 8)}); library:create("UIStroke", {Parent = s.elements, Color = Theme.Outline, Thickness = 1})
-            library:create("UIListLayout", {Parent = s.elements, Padding = dim(0, 8)}); library:create("UIPadding", {Parent = s.elements, PaddingTop = dim(0, 10), PaddingBottom = dim(0, 10), PaddingLeft = dim(0, 10), PaddingRight = dim(0, 10)})
-            library:create("TextLabel", { Parent = s.elements, Text = props.name or props.Name or "Section", Size = dim2(1, 0, 0, 20), BackgroundTransparency = 1, TextColor3 = Theme.Accent, FontFace = library.font, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Center })
+            library:create("UIListLayout", {Parent = s.elements, Padding = dim(0, compact and 7 or 8)}); library:create("UIPadding", {Parent = s.elements, PaddingTop = dim(0, compact and 8 or 10), PaddingBottom = dim(0, compact and 8 or 10), PaddingLeft = dim(0, compact and 8 or 10), PaddingRight = dim(0, compact and 8 or 10)})
+            library:create("TextLabel", { Parent = s.elements, Text = props.name or props.Name or "Section", Size = dim2(1, 0, 0, 20), BackgroundTransparency = 1, TextColor3 = Theme.Accent, FontFace = library.font, TextSize = compact and 13 or 14, TextXAlignment = Enum.TextXAlignment.Center })
             library:create("Frame", {Parent = s.elements, Size = dim2(1, 0, 0, 1), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0})
             setmetatable(s, { __index = section_api })
             return s
